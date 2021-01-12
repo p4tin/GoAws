@@ -163,6 +163,21 @@ type GetQueueAttributesResult struct {
 	Attrs []Attribute `xml:"Attribute,omitempty"`
 }
 
+type ListQueueTagsResponse struct {
+	Xmlns    string            `xml:"xmlns,attr,omitempty"`
+	Result  ListQueueTagsResult `xml:"ListQueueTagsResult"`
+	Metadata ResponseMetadata  `xml:"ResponseMetadata,omitempty"`
+}
+
+type ListQueueTagsResult struct {
+	Tag []Tag `xml:"Tag"`
+}
+
+type Tag struct {
+	Key string `xml:"Key"`
+	Value string `xml:"Value"`
+}
+
 type GetQueueAttributesResponse struct {
 	Xmlns    string                   `xml:"xmlns,attr,omitempty"`
 	Result   GetQueueAttributesResult `xml:"GetQueueAttributesResult"`

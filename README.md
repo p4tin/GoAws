@@ -29,6 +29,8 @@ Here is a list of the APIs:
  - [ ] ListQueueTags
  - [ ] RemovePermission
  - [x] SetQueueAttributes (Only supported attributes are set - see Supported Queue Attributes)
+ - [x] GetQueueAttributes (Only supported attributes are set - see Supported Queue Attributes)
+ - [x] ListQueueTags (Always return empty result)
  - [ ] TagQueue
  - [ ] UntagQueue
 
@@ -44,6 +46,7 @@ Here is a list of the APIs:
  - [x] CreateTopic
  - [x] Subscribe (raw)
  - [x] ListSubscriptions
+ - [x] ListTagsForResource (Always return empty result)
  - [x] Publish
  - [x] DeleteTopic
  - [x] Subscribe
@@ -51,11 +54,17 @@ Here is a list of the APIs:
  - [X] ListSubscriptionsByTopic
  - [x] GetSubscriptionAttributes
  - [x] SetSubscriptionAttributes (Only supported attributes are set - see Supported Subscription Attributes)
+ - [x] GetTopicAttributes (Only supported attributes are set - see Supported Topic Attributes)
 
 ## Supported Subscription Attributes
 
   - [x] RawMessageDelivery
   - [x] FilterPolicy (Only supported simplest "exact match" filter policy)
+
+## Supported Topic Attributes
+
+  - [x] Owner
+  - [x] TopicArn
 
 
 ## Yaml Configuration Implemented
@@ -65,7 +74,7 @@ Here is a list of the APIs:
  - [x] a command line argument to determine the environment to use in the config file (e.e.: Dev)
  - [x] IN the config file you can create Queues, Topic and Subscription see the example config file in the conf directory
 
-## Debug logging can be turned on via a command line flag (e.g.: -debug)
+## Info Logging (e.g.: -info) and Debug logging can be turned on via a command line flag (e.g.: -debug), default is Warn.
 
 ## Note:  The system does not authenticate or presently use https
 

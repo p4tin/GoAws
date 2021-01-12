@@ -55,6 +55,47 @@ type SetSubscriptionAttributesResponse struct {
 	Metadata ResponseMetadata `xml:"ResponseMetadata"`
 }
 
+
+/*** Get Topic Attributes ***/
+type GetTopicAttributesResult struct {
+	TopicAttributes TopicAttributes `xml:"Attributes,omitempty"`
+}
+
+type TopicAttributes struct {
+	/* TopicArn, FilterPolicy */
+	Entries []TopicAttributeEntry `xml:"entry,omitempty"`
+}
+
+type TopicAttributeEntry struct {
+	Key   string `xml:"key,omitempty"`
+	Value string `xml:"value,omitempty"`
+}
+
+type GetTopicAttributesResponse struct {
+	Xmlns    string                          `xml:"xmlns,attr,omitempty"`
+	Result   GetTopicAttributesResult `xml:"GetTopicAttributesResult"`
+	Metadata ResponseMetadata                `xml:"ResponseMetadata,omitempty"`
+}
+
+type ListTagsForResourceResponse struct {
+	Xmlns    string            `xml:"xmlns,attr,omitempty"`
+	Result  ListTagsForResourceResult `xml:"ListTagsForResourceResult"`
+	Metadata ResponseMetadata  `xml:"ResponseMetadata,omitempty"`
+}
+
+type ListTagsForResourceResult struct {
+	Tags []ListTags `xml:"Tags"`
+}
+
+type ListTags struct {
+	member []ListTagsMember `xml:"member"`
+}
+
+type ListTagsMember struct {
+	Key string `xml:"Key"`
+	Value string `xml:"Value"`
+}
+
 /*** Get Subscription Attributes ***/
 type GetSubscriptionAttributesResult struct {
 	SubscriptionAttributes SubscriptionAttributes `xml:"Attributes,omitempty"`

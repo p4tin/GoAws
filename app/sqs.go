@@ -86,6 +86,7 @@ type Queue struct {
 	IsFIFO              bool
 	FIFOMessages        map[string]int
 	FIFOSequenceNumbers map[string]int
+	Policy              string
 }
 
 var SyncQueues = struct {

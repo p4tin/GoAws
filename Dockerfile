@@ -14,6 +14,6 @@ FROM alpine
 
 EXPOSE 4100
 
-COPY goaws /
+COPY goaws_linux_amd64 /goaws
 COPY app/conf/goaws.yaml /conf/
 ENTRYPOINT ["/goaws"]

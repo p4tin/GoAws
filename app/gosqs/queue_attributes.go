@@ -39,6 +39,12 @@ func validateAndSetQueueAttributes(q *app.Queue, u url.Values) error {
 	if receiveWaitTime != 0 {
 		q.ReceiveWaitTimeSecs = receiveWaitTime
 	}
+
+	if len(attr["Policy"]) > 0 {
+		queuePolicy := attr["Policy"]
+		q.Policy = queuePolicy
+	}
+
 	strRedrivePolicy := attr["RedrivePolicy"]
 	if strRedrivePolicy != "" {
 		// support both int and string maxReceiveCount (Amazon clients use string)

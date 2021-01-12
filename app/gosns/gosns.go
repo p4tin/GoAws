@@ -99,7 +99,7 @@ func ListTopics(w http.ResponseWriter, req *http.Request) {
 	respStruct.Metadata = app.ResponseMetadata{RequestId: uuid}
 
 	respStruct.Result.Topics.Member = make([]app.TopicArnResult, 0, 0)
-	log.Println("Listing Topics")
+	log.Info("Listing Topics")
 	for _, topic := range app.SyncTopics.Topics {
 		ta := app.TopicArnResult{TopicArn: topic.Arn}
 		respStruct.Result.Topics.Member = append(respStruct.Result.Topics.Member, ta)
@@ -117,7 +117,7 @@ func CreateTopic(w http.ResponseWriter, req *http.Request) {
 	} else {
 		topicArn = "arn:aws:sns:" + app.CurrentEnvironment.Region + ":" + app.CurrentEnvironment.AccountID + ":" + topicName
 
-		log.Println("Creating Topic:", topicName)
+		log.Infof("Creating Topic: %s", topicName)
 		topic := &app.Topic{Name: topicName, Arn: topicArn}
 		topic.Subscriptions = make([]*app.Subscription, 0, 0)
 		app.SyncTopics.Lock()
@@ -436,11 +436,56 @@ func GetSubscriptionAttributes(w http.ResponseWriter, req *http.Request) {
 	createErrorResponse(w, req, "SubscriptionNotFound")
 }
 
+func GetTopicAttributes(w http.ResponseWriter, req *http.Request) {
+
+	content := req.FormValue("ContentType")
+	topicArn := req.FormValue("TopicArn")
+
+	log.Infof("GetTopicAttributes: %s", topicArn)
+	for _, topic := range app.SyncTopics.Topics {
+		if topic.Arn == topicArn {
+			entries := make([]app.TopicAttributeEntry, 0, 0)
+			entry := app.TopicAttributeEntry{Key: "Owner", Value: app.CurrentEnvironment.AccountID}
+			entries = append(entries, entry)
+			entry = app.TopicAttributeEntry{Key: "TopicArn", Value: topic.Arn}
+			entries = append(entries, entry)
+
+			result := app.GetTopicAttributesResult{TopicAttributes: app.TopicAttributes{Entries: entries}}
+			uuid, _ := common.NewUUID()
+			respStruct := app.GetTopicAttributesResponse{"http://sns.amazonaws.com/doc/2010-03-31", result, app.ResponseMetadata{RequestId: uuid}}
+
+			SendResponseBack(w, req, respStruct, content)
+			return
+		}
+	}
+	createErrorResponse(w, req, "TopicNotFound")
+}
+
+func ListTagsForResource(w http.ResponseWriter, req *http.Request) {
+
+	content := req.FormValue("ContentType")
+	resourceArn := req.FormValue("ResourceArn")
+
+	log.Infof("ListTagsForResource: %s", resourceArn)
+	for _, topic := range app.SyncTopics.Topics {
+		if topic.Arn == resourceArn {
+			var tags []app.ListTags
+			result := app.ListTagsForResourceResult{Tags: tags}
+			uuid, _ := common.NewUUID()
+			respStruct := app.ListTagsForResourceResponse{"http://sns.amazonaws.com/doc/2010-03-31", result, app.ResponseMetadata{RequestId: uuid}}
+
+			SendResponseBack(w, req, respStruct, content)
+			return
+		}
+	}
+	createErrorResponse(w, req, "TopicNotFound")
+}
+
 func Unsubscribe(w http.ResponseWriter, req *http.Request) {
 	content := req.FormValue("ContentType")
 	subArn := req.FormValue("SubscriptionArn")
 
-	log.Println("Unsubscribe:", subArn)
+	log.Infof("Unsubscribe: %s", subArn)
 	for _, topic := range app.SyncTopics.Topics {
 		for i, sub := range topic.Subscriptions {
 			if sub.SubscriptionArn == subArn {
@@ -469,7 +514,7 @@ func DeleteTopic(w http.ResponseWriter, req *http.Request) {
 	uriSegments := strings.Split(topicArn, ":")
 	topicName := uriSegments[len(uriSegments)-1]
 
-	log.Println("Delete Topic - TopicName:", topicName)
+	log.Infof("Delete Topic - TopicName: %s", topicName)
 
 	_, ok := app.SyncTopics.Topics[topicName]
 	if ok {
@@ -564,7 +609,7 @@ func publishSQS(w http.ResponseWriter, req *http.Request,
 
 		log.Infof("%s: Topic: %s(%s), Message: %s\n", time.Now().Format("2006-01-02 15:04:05"), topicName, queueName, msg.MessageBody)
 	} else {
-		log.Infof("%s: Queue %s does not exist, message discarded\n", time.Now().Format("2006-01-02 15:04:05"), queueName)
+		log.Warnf("%s: Queue %s does not exist, message discarded\n", time.Now().Format("2006-01-02 15:04:05"), queueName)
 	}
 }
 
@@ -768,7 +813,7 @@ func createErrorResponse(w http.ResponseWriter, req *http.Request, err string) {
 	enc := xml.NewEncoder(w)
 	enc.Indent("  ", "    ")
 	if err := enc.Encode(respStruct); err != nil {
-		log.Printf("error: %v\n", err)
+		log.Errorf("error: %v\n", err)
 	}
 }
 
@@ -777,14 +822,14 @@ func SendResponseBack(w http.ResponseWriter, req *http.Request, respStruct inter
 		w.Header().Set("Content-Type", "application/json")
 		enc := json.NewEncoder(w)
 		if err := enc.Encode(respStruct); err != nil {
-			log.Printf("error: %v\n", err)
+			log.Errorf("error: %v\n", err)
 		}
 	} else {
 		w.Header().Set("Content-Type", "application/xml")
 		enc := xml.NewEncoder(w)
 		enc.Indent("  ", "    ")
 		if err := enc.Encode(respStruct); err != nil {
-			log.Printf("error: %v\n", err)
+			log.Errorf("error: %v\n", err)
 		}
 	}
 }

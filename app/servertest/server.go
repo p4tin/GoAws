@@ -46,7 +46,7 @@ func New(addr string) (*Server, error) {
 	log.WithFields(log.Fields{
 		"host": app.CurrentEnvironment.Host,
 		"port": app.CurrentEnvironment.Port,
-	}).Info("URL Sarting to listen")
+	}).Info("URL Starting to listen")
 
 	l, err := net.Listen("tcp", addr)
 	if err != nil {

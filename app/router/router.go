@@ -9,6 +9,7 @@ import (
 	"fmt"
 
 	"github.com/gorilla/mux"
+	app "github.com/p4tin/goaws/app"
 	sns "github.com/p4tin/goaws/app/gosns"
 	sqs "github.com/p4tin/goaws/app/gosqs"
 )
@@ -33,6 +34,7 @@ var routingTable = map[string]http.HandlerFunc{
 	"CreateQueue":             sqs.CreateQueue,
 	"GetQueueAttributes":      sqs.GetQueueAttributes,
 	"SetQueueAttributes":      sqs.SetQueueAttributes,
+	"ListQueueTags":           sqs.ListQueueTags,
 	"SendMessage":             sqs.SendMessage,
 	"SendMessageBatch":        sqs.SendMessageBatch,
 	"ReceiveMessage":          sqs.ReceiveMessage,
@@ -47,19 +49,24 @@ var routingTable = map[string]http.HandlerFunc{
 	"ListTopics":                sns.ListTopics,
 	"CreateTopic":               sns.CreateTopic,
 	"DeleteTopic":               sns.DeleteTopic,
+	"GetTopicAttributes":        sns.GetTopicAttributes,
 	"Subscribe":                 sns.Subscribe,
 	"ConfirmSubscription":       sns.ConfirmSubscription,
 	"SetSubscriptionAttributes": sns.SetSubscriptionAttributes,
 	"GetSubscriptionAttributes": sns.GetSubscriptionAttributes,
 	"ListSubscriptionsByTopic":  sns.ListSubscriptionsByTopic,
 	"ListSubscriptions":         sns.ListSubscriptions,
+	"ListTagsForResource":       sns.ListTagsForResource,
 	"Unsubscribe":               sns.Unsubscribe,
 	"Publish":                   sns.Publish,
 }
 
 func health(w http.ResponseWriter, req *http.Request) {
+	//Add locks to healthcheck so we actually assert the health of things, if deadlocked it will fail
+	app.SyncQueues.Lock()
 	w.WriteHeader(200)
 	fmt.Fprint(w, "OK")
+	app.SyncQueues.Unlock()
 }
 
 func actionHandler(w http.ResponseWriter, req *http.Request) {
@@ -70,7 +77,7 @@ func actionHandler(w http.ResponseWriter, req *http.Request) {
 		}).Debug("Handling URL request")
 	fn, ok := routingTable[req.FormValue("Action")]
 	if !ok {
-		log.Println("Bad Request - Action:", req.FormValue("Action"))
+		log.Warnf("Bad Request - Action: %s", req.FormValue("Action"))
 		w.WriteHeader(http.StatusBadRequest)
 		io.WriteString(w, "Bad Request")
 		return

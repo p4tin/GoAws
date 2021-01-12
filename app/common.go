@@ -28,6 +28,7 @@ type EnvQueueAttributes struct {
 type Environment struct {
 	Host                   string
 	Port                   string
+	DeriveHostAndPort      bool
 	SqsPort                string
 	SnsPort                string
 	Region                 string
