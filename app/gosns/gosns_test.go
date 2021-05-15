@@ -124,7 +124,7 @@ func TestPublishHandler_POST_FilterPolicyRejectsTheMessage(t *testing.T) {
 
 	// We set up queue so later we can check if anything was posted there
 	queueName := "testingQueue"
-	queueUrl := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/queue/" + queueName
+	queueUrl := "http://" + req.Host + "/queue/" + queueName
 	queueArn := "arn:aws:sqs:" + app.CurrentEnvironment.Region + ":000000000000:" + queueName
 	app.SyncQueues.Queues[queueName] = &app.Queue{
 		Name:        queueName,
@@ -195,7 +195,7 @@ func TestPublishHandler_POST_FilterPolicyPassesTheMessage(t *testing.T) {
 
 	// We set up queue so later we can check if anything was posted there
 	queueName := "testingQueue"
-	queueUrl := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/queue/" + queueName
+	queueUrl := "http://" + req.Host + "/queue/" + queueName
 	queueArn := "arn:aws:sqs:" + app.CurrentEnvironment.Region + ":000000000000:" + queueName
 	app.SyncQueues.Queues[queueName] = &app.Queue{
 		Name:        queueName,

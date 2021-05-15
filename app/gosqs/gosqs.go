@@ -103,7 +103,7 @@ func ListQueues(w http.ResponseWriter, req *http.Request) {
 	for _, queue := range app.SyncQueues.Queues {
 		app.SyncQueues.Lock()
 		if strings.HasPrefix(queue.Name, queueNamePrefix) {
-			respStruct.Result.QueueUrl = append(respStruct.Result.QueueUrl, queue.URL)
+			respStruct.Result.QueueUrl = append(respStruct.Result.QueueUrl, fmt.Sprintf(queue.URL, req.Host))
 		}
 		app.SyncQueues.Unlock()
 	}
@@ -118,11 +118,9 @@ func CreateQueue(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/xml")
 	queueName := req.FormValue("QueueName")
 
-	queueUrl := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port +
-		"/" + app.CurrentEnvironment.AccountID + "/" + queueName
+	queueUrl := "http://%s/" + app.CurrentEnvironment.AccountID + "/" + queueName
 	if app.CurrentEnvironment.Region != "" {
-		queueUrl = "http://" + app.CurrentEnvironment.Region + "." + app.CurrentEnvironment.Host + ":" +
-			app.CurrentEnvironment.Port + "/" + app.CurrentEnvironment.AccountID + "/" + queueName
+		queueUrl = "http://" + app.CurrentEnvironment.Region + ".%s/" + app.CurrentEnvironment.AccountID + "/" + queueName
 	}
 	queueArn := "arn:aws:sqs:" + app.CurrentEnvironment.Region + ":" + app.CurrentEnvironment.AccountID + ":" + queueName
 
@@ -798,7 +796,7 @@ func GetQueueUrl(w http.ResponseWriter, req *http.Request) {
 	//// Retrieve FormValues required
 	queueName := req.FormValue("QueueName")
 	if queue, ok := app.SyncQueues.Queues[queueName]; ok {
-		url := queue.URL
+		url := fmt.Sprintf(queue.URL, req.Host)
 		log.Println("Get Queue URL:", queueName)
 		// Create, encode/xml and send response
 		result := app.GetQueueUrlResult{QueueUrl: url}

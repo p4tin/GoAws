@@ -74,19 +74,12 @@ func LoadYamlConfig(filename string, env string) []string {
 		app.CurrentEnvironment.AccountID = "queue"
 	}
 
-	if app.CurrentEnvironment.Host == "" {
-		app.CurrentEnvironment.Host = "localhost"
-		app.CurrentEnvironment.Port = "4100"
-	}
-
 	app.SyncQueues.Lock()
 	app.SyncTopics.Lock()
 	for _, queue := range envs[env].Queues {
-		queueUrl := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port +
-			"/" + app.CurrentEnvironment.AccountID + "/" + queue.Name
+		queueUrl := "http://%s/" + app.CurrentEnvironment.AccountID + "/" + queue.Name
 		if app.CurrentEnvironment.Region != "" {
-			queueUrl = "http://" + app.CurrentEnvironment.Region + "." + app.CurrentEnvironment.Host + ":" +
-				app.CurrentEnvironment.Port + "/" + app.CurrentEnvironment.AccountID + "/" + queue.Name
+			queueUrl = "http://" + app.CurrentEnvironment.Region + ".%s/" + app.CurrentEnvironment.AccountID + "/" + queue.Name
 		}
 		queueArn := "arn:aws:sqs:" + app.CurrentEnvironment.Region + ":" + app.CurrentEnvironment.AccountID + ":" + queue.Name
 
@@ -168,11 +161,9 @@ func createHttpSubscription(configSubscription app.EnvSubsciption) *app.Subscrip
 
 func createSqsSubscription(configSubscription app.EnvSubsciption, topicArn string) *app.Subscription {
 	if _, ok := app.SyncQueues.Queues[configSubscription.QueueName]; !ok {
-		queueUrl := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port +
-			"/" + app.CurrentEnvironment.AccountID + "/" + configSubscription.QueueName
+		queueUrl := "http://%s/" + app.CurrentEnvironment.AccountID + "/" + configSubscription.QueueName
 		if app.CurrentEnvironment.Region != "" {
-			queueUrl = "http://" + app.CurrentEnvironment.Region + "." + app.CurrentEnvironment.Host + ":" +
-				app.CurrentEnvironment.Port + "/" + app.CurrentEnvironment.AccountID + "/" + configSubscription.QueueName
+			queueUrl = "http://" + app.CurrentEnvironment.Region + ".%s/" + app.CurrentEnvironment.AccountID + "/" + configSubscription.QueueName
 		}
 		queueArn := "arn:aws:sqs:" + app.CurrentEnvironment.Region + ":" + app.CurrentEnvironment.AccountID + ":" + configSubscription.QueueName
 		app.SyncQueues.Queues[configSubscription.QueueName] = &app.Queue{

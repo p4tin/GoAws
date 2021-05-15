@@ -19,6 +19,7 @@ const (
 func TestCreateMessageBody_NonJson(t *testing.T) {
 	message := "message text"
 	subject := "subject"
+	host := "localhost:4100"
 	subs := &app.Subscription{
 		Protocol:        "sqs",
 		TopicArn:        "topic-arn",
@@ -26,7 +27,7 @@ func TestCreateMessageBody_NonJson(t *testing.T) {
 		Raw:             false,
 	}
 
-	snsMessage, err := CreateMessageBody(subs, message, subject, messageStructureEmpty, make(map[string]app.MessageAttributeValue))
+	snsMessage, err := CreateMessageBody(host, subs, message, subject, messageStructureEmpty, make(map[string]app.MessageAttributeValue))
 	if err != nil {
 		t.Fatalf(`error creating SNS message: %s`, err)
 	}
@@ -67,8 +68,9 @@ func TestCreateMessageBody_OnlyDefaultValueInJson(t *testing.T) {
 	}
 	message := `{"default": "default message text", "http": "HTTP message text"}`
 	subject := "subject"
+	host := "localhost:4100"
 
-	snsMessage, err := CreateMessageBody(subs, message, subject, messageStructureJSON, nil)
+	snsMessage, err := CreateMessageBody(host, subs, message, subject, messageStructureJSON, nil)
 	if err != nil {
 		t.Fatalf(`error creating SNS message: %s`, err)
 	}
@@ -110,8 +112,9 @@ func TestCreateMessageBody_OnlySqsValueInJson(t *testing.T) {
 	}
 	message := `{"sqs": "message text"}`
 	subject := "subject"
+	host := "localhost:4100"
 
-	snsMessage, err := CreateMessageBody(subs, message, subject, messageStructureJSON, nil)
+	snsMessage, err := CreateMessageBody(host, subs, message, subject, messageStructureJSON, nil)
 	if err == nil {
 		t.Fatalf(`error expected but instead SNS message was returned: %s`, snsMessage)
 	}
@@ -128,8 +131,9 @@ func TestCreateMessageBody_BothDefaultAndSqsValuesInJson(t *testing.T) {
 	}
 	message := `{"default": "default message text", "sqs": "sqs message text"}`
 	subject := "subject"
+	host := "localhost:4100"
 
-	snsMessage, err := CreateMessageBody(subs, message, subject, messageStructureJSON, nil)
+	snsMessage, err := CreateMessageBody(host, subs, message, subject, messageStructureJSON, nil)
 	if err != nil {
 		t.Fatalf(`error creating SNS message: %s`, err)
 	}
@@ -171,8 +175,9 @@ func TestCreateMessageBody_NonJsonContainingJson(t *testing.T) {
 	}
 	message := `{"default": "default message text", "sqs": "sqs message text"}`
 	subject := "subject"
+	host := "localhost:4100"
 
-	snsMessage, err := CreateMessageBody(subs, message, subject, "", nil)
+	snsMessage, err := CreateMessageBody(host, subs, message, subject, "", nil)
 	if err != nil {
 		t.Fatalf(`error creating SNS message: %s`, err)
 	}

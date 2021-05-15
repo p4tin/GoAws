@@ -54,9 +54,9 @@ func TestListQueues_POST_Success(t *testing.T) {
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(ListQueues)
 
-	app.SyncQueues.Queues["foo"] = &app.Queue{Name: "foo", URL: "http://:/queue/foo"}
-	app.SyncQueues.Queues["bar"] = &app.Queue{Name: "bar", URL: "http://:/queue/bar"}
-	app.SyncQueues.Queues["foobar"] = &app.Queue{Name: "foobar", URL: "http://:/queue/foobar"}
+	app.SyncQueues.Queues["foo"] = &app.Queue{Name: "foo", URL: "http://%s/queue/foo"}
+	app.SyncQueues.Queues["bar"] = &app.Queue{Name: "bar", URL: "http://%s/queue/bar"}
+	app.SyncQueues.Queues["foobar"] = &app.Queue{Name: "foobar", URL: "http://%s/queue/foobar"}
 
 	handler.ServeHTTP(rr, req)
 
@@ -66,7 +66,7 @@ func TestListQueues_POST_Success(t *testing.T) {
 	}
 
 	// Check the response body is what we expect.
-	expected := "<QueueUrl>http://:/queue/bar</QueueUrl>"
+	expected := "<QueueUrl>http:///queue/bar</QueueUrl>"
 	if !strings.Contains(rr.Body.String(), expected) {
 		t.Errorf("handler returned unexpected body: got %v want %v",
 			rr.Body.String(), expected)
@@ -86,7 +86,7 @@ func TestListQueues_POST_Success(t *testing.T) {
 	}
 
 	// Check the response body is what we expect.
-	unexpected := "<QueueUrl>http://:/queue/bar</QueueUrl>"
+	unexpected := "<QueueUrl>http:///queue/bar</QueueUrl>"
 	if strings.Contains(rr.Body.String(), unexpected) {
 		t.Errorf("handler returned unexpected body: got %v",
 			rr.Body.String())
@@ -134,7 +134,7 @@ func TestCreateQueuehandler_POST_CreateQueue(t *testing.T) {
 	}
 	expectedQueue := &app.Queue{
 		Name:        queueName,
-		URL:         "http://://" + queueName,
+		URL:         "http://%s//" + queueName,
 		Arn:         "arn:aws:sqs:::" + queueName,
 		TimeoutSecs: 60,
 		MaximumMessageSize: 2048,
@@ -182,7 +182,7 @@ func TestCreateFIFOQueuehandler_POST_CreateQueue(t *testing.T) {
 	}
 	expectedQueue := &app.Queue{
 		Name:        queueName,
-		URL:         "http://://" + queueName,
+		URL:         "http://%s//" + queueName,
 		Arn:         "arn:aws:sqs:::" + queueName,
 		TimeoutSecs: 60,
 		IsFIFO:      true,

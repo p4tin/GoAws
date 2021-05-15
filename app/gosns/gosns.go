@@ -206,9 +206,9 @@ func Subscribe(w http.ResponseWriter, req *http.Request) {
 				Token:            token,
 				TopicArn:         topicArn,
 				Message:          "You have chosen to subscribe to the topic " + topicArn + ".\nTo confirm the subscription, visit the SubscribeURL included in this message.",
-				SigningCertURL:   "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/SimpleNotificationService/" + uuid + ".pem",
+				SigningCertURL:   "http://" + req.Host + "/SimpleNotificationService/" + uuid + ".pem",
 				SignatureVersion: "1",
-				SubscribeURL:     "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/?Action=ConfirmSubscription&TopicArn=" + topicArn + "&Token=" + token,
+				SubscribeURL:     "http://" + req.Host + "/?Action=ConfirmSubscription&TopicArn=" + topicArn + "&Token=" + token,
 				Timestamp:        time.Now().UTC().Format(time.RFC3339),
 			}
 			signature, err := signMessage(PrivateKEY, snsMSG)
@@ -511,7 +511,7 @@ func Publish(w http.ResponseWriter, req *http.Request) {
 			case app.ProtocolHTTP:
 				fallthrough
 			case app.ProtocolHTTPS:
-				publishHTTP(subs, messageBody, messageAttributes, subject, topicArn)
+				publishHTTP(req.Host, subs, messageBody, messageAttributes, subject, topicArn)
 			}
 		}
 	} else {
@@ -543,7 +543,7 @@ func publishSQS(w http.ResponseWriter, req *http.Request,
 		msg := app.Message{}
 
 		if subs.Raw == false {
-			m, err := CreateMessageBody(subs, messageBody, subject, messageStructure, messageAttributes)
+			m, err := CreateMessageBody(req.Host, subs, messageBody, subject, messageStructure, messageAttributes)
 			if err != nil {
 				createErrorResponse(w, req, err.Error())
 				return
@@ -573,7 +573,7 @@ func publishSQS(w http.ResponseWriter, req *http.Request,
 	}
 }
 
-func publishHTTP(subs *app.Subscription, messageBody string, messageAttributes map[string]app.MessageAttributeValue,
+func publishHTTP(host string, subs *app.Subscription, messageBody string, messageAttributes map[string]app.MessageAttributeValue,
 	subject string, topicArn string) {
 	id, _ := common.NewUUID()
 	msg := app.SNSMessage{
@@ -584,8 +584,8 @@ func publishHTTP(subs *app.Subscription, messageBody string, messageAttributes m
 		Message:           messageBody,
 		Timestamp:         time.Now().UTC().Format(time.RFC3339),
 		SignatureVersion:  "1",
-		SigningCertURL:    "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/SimpleNotificationService/" + id + ".pem",
-		UnsubscribeURL:    "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/?Action=Unsubscribe&SubscriptionArn=" + subs.SubscriptionArn,
+		SigningCertURL:    "http://" + host + "/SimpleNotificationService/" + id + ".pem",
+		UnsubscribeURL:    "http://" + host + "/?Action=Unsubscribe&SubscriptionArn=" + subs.SubscriptionArn,
 		MessageAttributes: formatAttributes(messageAttributes),
 	}
 
@@ -706,7 +706,7 @@ func getMessageAttributesFromRequest(req *http.Request) map[string]app.MessageAt
 	return attributes
 }
 
-func CreateMessageBody(subs *app.Subscription, msg string, subject string, messageStructure string,
+func CreateMessageBody(host string, subs *app.Subscription, msg string, subject string, messageStructure string,
 	messageAttributes map[string]app.MessageAttributeValue) ([]byte, error) {
 
 	msgId, _ := common.NewUUID()
@@ -718,8 +718,8 @@ func CreateMessageBody(subs *app.Subscription, msg string, subject string, messa
 		Subject:           subject,
 		Timestamp:         time.Now().UTC().Format(time.RFC3339),
 		SignatureVersion:  "1",
-		SigningCertURL:    "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/SimpleNotificationService/" + msgId + ".pem",
-		UnsubscribeURL:    "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port + "/?Action=Unsubscribe&SubscriptionArn=" + subs.SubscriptionArn,
+		SigningCertURL:    "http://" + host + "/SimpleNotificationService/" + msgId + ".pem",
+		UnsubscribeURL:    "http://" + host + "/?Action=Unsubscribe&SubscriptionArn=" + subs.SubscriptionArn,
 		MessageAttributes: formatAttributes(messageAttributes),
 	}
 
