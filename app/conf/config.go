@@ -18,15 +18,21 @@ import (
 
 var envs map[string]app.Environment
 
+// LoadYamlConfig loads a custom config file or uses the default goaws.yaml file.
+//
+// the compiled file must be in the root directory as per the documentation, otherwise the default file will not be loaded
+// consider storing the default configuration statically
 func LoadYamlConfig(filename string, env string) []string {
 	ports := []string{"4100"}
 
 	if filename == "" {
-		filename, _ = filepath.Abs("./conf/goaws.yaml")
+		filename, _ = filepath.Abs("./app/conf/goaws.yaml")
 	}
+
 	log.Warnf("Loading config file: %s", filename)
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
+		log.Errorf("err: %v\n", err)
 		return ports
 	}
 
@@ -35,6 +41,7 @@ func LoadYamlConfig(filename string, env string) []string {
 		log.Errorf("err: %v\n", err)
 		return ports
 	}
+
 	if env == "" {
 		env = "Local"
 	}
@@ -82,10 +89,10 @@ func LoadYamlConfig(filename string, env string) []string {
 	app.SyncQueues.Lock()
 	app.SyncTopics.Lock()
 	for _, queue := range envs[env].Queues {
-		queueUrl := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port +
+		queueURL := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port +
 			"/" + app.CurrentEnvironment.AccountID + "/" + queue.Name
 		if app.CurrentEnvironment.Region != "" {
-			queueUrl = "http://" + app.CurrentEnvironment.Region + "." + app.CurrentEnvironment.Host + ":" +
+			queueURL = "http://" + app.CurrentEnvironment.Region + "." + app.CurrentEnvironment.Host + ":" +
 				app.CurrentEnvironment.Port + "/" + app.CurrentEnvironment.AccountID + "/" + queue.Name
 		}
 		queueArn := "arn:aws:sqs:" + app.CurrentEnvironment.Region + ":" + app.CurrentEnvironment.AccountID + ":" + queue.Name
@@ -101,7 +108,7 @@ func LoadYamlConfig(filename string, env string) []string {
 			Name:                queue.Name,
 			TimeoutSecs:         app.CurrentEnvironment.QueueAttributeDefaults.VisibilityTimeout,
 			Arn:                 queueArn,
-			URL:                 queueUrl,
+			URL:                 queueURL,
 			ReceiveWaitTimeSecs: queue.ReceiveMessageWaitTimeSeconds,
 			MaximumMessageSize:  queue.MaximumMessageSize,
 			IsFIFO:              app.HasFIFOQueueName(queue.Name),
@@ -132,7 +139,7 @@ func LoadYamlConfig(filename string, env string) []string {
 		for _, subs := range topic.Subscriptions {
 			var newSub *app.Subscription
 			if strings.Contains(subs.Protocol, "http") {
-				newSub = createHttpSubscription(subs)
+				newSub = createHTTPSubscription(subs)
 			} else {
 				//Queue does not exist yet, create it.
 				newSub = createSqsSubscription(subs, topicArn)
@@ -158,7 +165,7 @@ func LoadYamlConfig(filename string, env string) []string {
 	return ports
 }
 
-func createHttpSubscription(configSubscription app.EnvSubsciption) *app.Subscription {
+func createHTTPSubscription(configSubscription app.EnvSubsciption) *app.Subscription {
 	newSub := &app.Subscription{EndPoint: configSubscription.EndPoint, Protocol: configSubscription.Protocol, TopicArn: configSubscription.TopicArn, Raw: configSubscription.Raw}
 	subArn, _ := common.NewUUID()
 	subArn = configSubscription.TopicArn + ":" + subArn
@@ -168,10 +175,10 @@ func createHttpSubscription(configSubscription app.EnvSubsciption) *app.Subscrip
 
 func createSqsSubscription(configSubscription app.EnvSubsciption, topicArn string) *app.Subscription {
 	if _, ok := app.SyncQueues.Queues[configSubscription.QueueName]; !ok {
-		queueUrl := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port +
+		queueURL := "http://" + app.CurrentEnvironment.Host + ":" + app.CurrentEnvironment.Port +
 			"/" + app.CurrentEnvironment.AccountID + "/" + configSubscription.QueueName
 		if app.CurrentEnvironment.Region != "" {
-			queueUrl = "http://" + app.CurrentEnvironment.Region + "." + app.CurrentEnvironment.Host + ":" +
+			queueURL = "http://" + app.CurrentEnvironment.Region + "." + app.CurrentEnvironment.Host + ":" +
 				app.CurrentEnvironment.Port + "/" + app.CurrentEnvironment.AccountID + "/" + configSubscription.QueueName
 		}
 		queueArn := "arn:aws:sqs:" + app.CurrentEnvironment.Region + ":" + app.CurrentEnvironment.AccountID + ":" + configSubscription.QueueName
@@ -179,7 +186,7 @@ func createSqsSubscription(configSubscription app.EnvSubsciption, topicArn strin
 			Name:                configSubscription.QueueName,
 			TimeoutSecs:         app.CurrentEnvironment.QueueAttributeDefaults.VisibilityTimeout,
 			Arn:                 queueArn,
-			URL:                 queueUrl,
+			URL:                 queueURL,
 			ReceiveWaitTimeSecs: app.CurrentEnvironment.QueueAttributeDefaults.ReceiveMessageWaitTimeSeconds,
 			MaximumMessageSize:  app.CurrentEnvironment.QueueAttributeDefaults.MaximumMessageSize,
 			IsFIFO:              app.HasFIFOQueueName(configSubscription.QueueName),
