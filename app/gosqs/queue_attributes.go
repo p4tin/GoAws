@@ -78,6 +78,10 @@ func validateAndSetQueueAttributes(q *app.Queue, u url.Values) error {
 		q.DeadLetterQueue = deadLetterQueue
 		q.MaxReceiveCount = maxReceiveCount
 	}
+	delaySecs, _ := strconv.Atoi(attr["DelaySeconds"])
+	if delaySecs != 0 {
+		q.DelaySecs = delaySecs
+	}
 
 	return nil
 }

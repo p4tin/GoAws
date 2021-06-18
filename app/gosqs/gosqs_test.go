@@ -91,7 +91,6 @@ func TestListQueues_POST_Success(t *testing.T) {
 		t.Errorf("handler returned unexpected body: got %v",
 			rr.Body.String())
 	}
-
 }
 
 func TestCreateQueuehandler_POST_CreateQueue(t *testing.T) {
@@ -133,12 +132,12 @@ func TestCreateQueuehandler_POST_CreateQueue(t *testing.T) {
 			rr.Body.String(), expected)
 	}
 	expectedQueue := &app.Queue{
-		Name:        queueName,
-		URL:         "http://://" + queueName,
-		Arn:         "arn:aws:sqs:::" + queueName,
-		TimeoutSecs: 60,
+		Name:               queueName,
+		URL:                "http://://" + queueName,
+		Arn:                "arn:aws:sqs:::" + queueName,
+		TimeoutSecs:        60,
 		MaximumMessageSize: 2048,
-		Duplicates:  make(map[string]time.Time),
+		Duplicates:         make(map[string]time.Time),
 	}
 	actualQueue := app.SyncQueues.Queues[queueName]
 	if !reflect.DeepEqual(expectedQueue, actualQueue) {
@@ -186,7 +185,7 @@ func TestCreateFIFOQueuehandler_POST_CreateQueue(t *testing.T) {
 		Arn:         "arn:aws:sqs:::" + queueName,
 		TimeoutSecs: 60,
 		IsFIFO:      true,
-		Duplicates:   make(map[string]time.Time),
+		Duplicates:  make(map[string]time.Time),
 	}
 	actualQueue := app.SyncQueues.Queues[queueName]
 	if !reflect.DeepEqual(expectedQueue, actualQueue) {
@@ -1018,7 +1017,6 @@ func TestDeadLetterQueue(t *testing.T) {
 	if len(deadLetterQueue.Messages) == 0 {
 		t.Fatal("expected a message")
 	}
-
 }
 
 func TestReceiveMessageWaitTimeEnforced(t *testing.T) {
@@ -1122,6 +1120,7 @@ func TestReceiveMessageWaitTimeEnforced(t *testing.T) {
 		t.Fatal("handler waited when message was available, expected not to wait")
 	}
 }
+
 func TestReceiveMessage_CanceledByClient(t *testing.T) {
 	// create a queue
 	req, err := http.NewRequest("POST", "/", nil)
@@ -1313,7 +1312,96 @@ func TestReceiveMessage_WithConcurrentDeleteQueue(t *testing.T) {
 	if timedout := waitTimeout(&wg, 2*time.Second); timedout {
 		t.Errorf("concurrent handlers timeout, expecting both to return within timeout")
 	}
+}
 
+func TestReceiveMessageDelaySeconds(t *testing.T) {
+	// create a queue
+	req, err := http.NewRequest("POST", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form := url.Values{}
+	form.Add("Action", "CreateQueue")
+	form.Add("QueueName", "delay-seconds-queue")
+	form.Add("Attribute.1.Name", "DelaySeconds")
+	form.Add("Attribute.1.Value", "2")
+	form.Add("Version", "2012-11-05")
+	req.PostForm = form
+
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(CreateQueue).ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got \n%v want %v",
+			status, http.StatusOK)
+	}
+
+	// send a message
+	req, err = http.NewRequest("POST", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form = url.Values{}
+	form.Add("Action", "SendMessage")
+	form.Add("QueueUrl", "http://localhost:4100/queue/delay-seconds-queue")
+	form.Add("MessageBody", "1")
+	form.Add("Version", "2012-11-05")
+	req.PostForm = form
+	rr = httptest.NewRecorder()
+	http.HandlerFunc(SendMessage).ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got \n%v want %v",
+			status, http.StatusOK)
+	}
+
+	// receive message before delay is up
+	req, err = http.NewRequest("POST", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form = url.Values{}
+	form.Add("Action", "ReceiveMessage")
+	form.Add("QueueUrl", "http://localhost:4100/queue/delay-seconds-queue")
+	form.Add("Version", "2012-11-05")
+	req.PostForm = form
+	rr = httptest.NewRecorder()
+	http.HandlerFunc(ReceiveMessage).ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got \n%v want %v",
+			status, http.StatusOK)
+	}
+	if ok := strings.Contains(rr.Body.String(), "<Message>"); ok {
+		t.Fatal("handler should not return a message")
+	}
+
+	// receive message with wait should return after delay
+	req, err = http.NewRequest("POST", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form = url.Values{}
+	form.Add("Action", "ReceiveMessage")
+	form.Add("QueueUrl", "http://localhost:4100/queue/delay-seconds-queue")
+	form.Add("WaitTimeSeconds", "10")
+	form.Add("Version", "2012-11-05")
+	req.PostForm = form
+	rr = httptest.NewRecorder()
+	start := time.Now()
+	http.HandlerFunc(ReceiveMessage).ServeHTTP(rr, req)
+	elapsed := time.Since(start)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got \n%v want %v",
+			status, http.StatusOK)
+	}
+	if elapsed < 1*time.Second {
+		t.Errorf("handler didn't wait at all")
+	}
+	if ok := strings.Contains(rr.Body.String(), "<Message>"); !ok {
+		t.Errorf("handler should return a message")
+	}
+	if elapsed > 4*time.Second {
+		t.Errorf("handler didn't need to wait all WaitTimeSeconds=10, only DelaySeconds=2")
+	}
 }
 
 func TestSetQueueAttributes_POST_QueueNotFound(t *testing.T) {
@@ -1759,6 +1847,95 @@ func TestSendMessage_POST_DuplicatationEnabledOnFifoQueue(t *testing.T) {
 	}
 	if body := app.SyncQueues.Queues["dup-testing.fifo"].Messages[0].MessageBody; string(body) == "Test2" {
 		t.Fatal("duplicate message should not be added to queue")
+	}
+}
+
+func TestSendMessage_POST_DelaySeconds(t *testing.T) {
+	// create a queue
+	req, err := http.NewRequest("POST", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form := url.Values{}
+	form.Add("Action", "CreateQueue")
+	form.Add("QueueName", "sendmessage-delay")
+	form.Add("Version", "2012-11-05")
+	req.PostForm = form
+
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(CreateQueue).ServeHTTP(rr, req)
+
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got \n%v want %v",
+			status, http.StatusOK)
+	}
+
+	// send a message
+	req, err = http.NewRequest("POST", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form = url.Values{}
+	form.Add("Action", "SendMessage")
+	form.Add("QueueUrl", "http://localhost:4100/queue/sendmessage-delay")
+	form.Add("MessageBody", "1")
+	form.Add("DelaySeconds", "2")
+	form.Add("Version", "2012-11-05")
+	req.PostForm = form
+	rr = httptest.NewRecorder()
+	http.HandlerFunc(SendMessage).ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got \n%v want %v",
+			status, http.StatusOK)
+	}
+
+	// receive message before delay is up
+	req, err = http.NewRequest("POST", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form = url.Values{}
+	form.Add("Action", "ReceiveMessage")
+	form.Add("QueueUrl", "http://localhost:4100/queue/sendmessage-delay")
+	form.Add("Version", "2012-11-05")
+	req.PostForm = form
+	rr = httptest.NewRecorder()
+	http.HandlerFunc(ReceiveMessage).ServeHTTP(rr, req)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got \n%v want %v",
+			status, http.StatusOK)
+	}
+	if ok := strings.Contains(rr.Body.String(), "<Message>"); ok {
+		t.Fatal("handler should not return a message")
+	}
+
+	// receive message with wait should return after delay
+	req, err = http.NewRequest("POST", "/", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	form = url.Values{}
+	form.Add("Action", "ReceiveMessage")
+	form.Add("QueueUrl", "http://localhost:4100/queue/sendmessage-delay")
+	form.Add("WaitTimeSeconds", "10")
+	form.Add("Version", "2012-11-05")
+	req.PostForm = form
+	rr = httptest.NewRecorder()
+	start := time.Now()
+	http.HandlerFunc(ReceiveMessage).ServeHTTP(rr, req)
+	elapsed := time.Since(start)
+	if status := rr.Code; status != http.StatusOK {
+		t.Errorf("handler returned wrong status code: got \n%v want %v",
+			status, http.StatusOK)
+	}
+	if elapsed < 1*time.Second {
+		t.Errorf("handler didn't wait at all")
+	}
+	if ok := strings.Contains(rr.Body.String(), "<Message>"); !ok {
+		t.Errorf("handler should return a message")
+	}
+	if elapsed > 4*time.Second {
+		t.Errorf("handler didn't need to wait all WaitTimeSeconds=10, only DelaySeconds=2")
 	}
 }
 

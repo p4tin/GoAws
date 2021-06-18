@@ -17,7 +17,7 @@ func TestApplyQueueAttributes(t *testing.T) {
 		q := &app.Queue{TimeoutSecs: 30}
 		u := url.Values{}
 		u.Add("Attribute.1.Name", "DelaySeconds")
-		u.Add("Attribute.1.Value", "20")
+		u.Add("Attribute.1.Value", "25")
 		u.Add("Attribute.2.Name", "VisibilityTimeout")
 		u.Add("Attribute.2.Value", "60")
 		u.Add("Attribute.3.Name", "Policy")
@@ -31,6 +31,7 @@ func TestApplyQueueAttributes(t *testing.T) {
 		expected := &app.Queue{
 			TimeoutSecs:         60,
 			ReceiveWaitTimeSecs: 20,
+			DelaySecs:           25,
 			MaxReceiveCount:     4,
 			DeadLetterQueue:     deadLetterQueue,
 		}

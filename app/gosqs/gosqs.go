@@ -158,6 +158,7 @@ func CreateQueue(w http.ResponseWriter, req *http.Request) {
 
 func SendMessage(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/xml")
+	req.ParseForm()
 	messageBody := req.FormValue("MessageBody")
 	messageGroupID := req.FormValue("MessageGroupId")
 	messageDeduplicationID := req.FormValue("MessageDeduplicationId")
@@ -180,11 +181,16 @@ func SendMessage(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	if (app.SyncQueues.Queues[queueName].MaximumMessageSize > 0 &&
-		len(messageBody) > app.SyncQueues.Queues[queueName].MaximumMessageSize) {
+	if app.SyncQueues.Queues[queueName].MaximumMessageSize > 0 &&
+		len(messageBody) > app.SyncQueues.Queues[queueName].MaximumMessageSize {
 		// Message size is too big
 		createErrorResponse(w, req, "MessageTooBig")
 		return
+	}
+
+	delaySecs := app.SyncQueues.Queues[queueName].DelaySecs
+	if mv := req.FormValue("DelaySeconds"); mv != "" {
+		delaySecs, _ = strconv.Atoi(mv)
 	}
 
 	log.Println("Putting Message in Queue:", queueName)
@@ -198,6 +204,7 @@ func SendMessage(w http.ResponseWriter, req *http.Request) {
 	msg.GroupID = messageGroupID
 	msg.DeduplicationID = messageDeduplicationID
 	msg.SentTime = time.Now()
+	msg.DelaySecs = delaySecs
 
 	app.SyncQueues.Lock()
 	fifoSeqNumber := ""
@@ -272,7 +279,6 @@ func SendMessageBatch(w http.ResponseWriter, req *http.Request) {
 				return
 			}
 			keyIndex, err := strconv.Atoi(keySegments[1])
-
 			if err != nil {
 				createErrorResponse(w, req, "Error")
 				return
@@ -377,6 +383,7 @@ func SendMessageBatch(w http.ResponseWriter, req *http.Request) {
 
 func ReceiveMessage(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "application/xml")
+	req.ParseForm()
 
 	waitTimeSeconds := 0
 	wts := req.FormValue("WaitTimeSeconds")
@@ -504,8 +511,8 @@ func ReceiveMessage(w http.ResponseWriter, req *http.Request) {
 
 func numberOfHiddenMessagesInQueue(queue app.Queue) int {
 	num := 0
-	for i := range queue.Messages {
-		if queue.Messages[i].ReceiptHandle != "" {
+	for _, m := range queue.Messages {
+		if m.ReceiptHandle != "" || m.DelaySecs > 0 && time.Now().Before(m.SentTime.Add(time.Duration(m.DelaySecs)*time.Second)) {
 			num++
 		}
 	}
@@ -612,7 +619,6 @@ func DeleteMessageBatch(w http.ResponseWriter, req *http.Request) {
 		keySegments := strings.Split(k, ".")
 		if keySegments[0] == "DeleteMessageBatchRequestEntry" {
 			keyIndex, err := strconv.Atoi(keySegments[1])
-
 			if err != nil {
 				createErrorResponse(w, req, "Error")
 				return
@@ -836,7 +842,7 @@ func GetQueueAttributes(w http.ResponseWriter, req *http.Request) {
 		attribs := make([]app.Attribute, 0, 0)
 		attr := app.Attribute{Name: "VisibilityTimeout", Value: strconv.Itoa(queue.TimeoutSecs)}
 		attribs = append(attribs, attr)
-		attr = app.Attribute{Name: "DelaySeconds", Value: "0"}
+		attr = app.Attribute{Name: "DelaySeconds", Value: strconv.Itoa(queue.DelaySecs)}
 		attribs = append(attribs, attr)
 		attr = app.Attribute{Name: "ReceiveMessageWaitTimeSeconds", Value: strconv.Itoa(queue.ReceiveWaitTimeSecs)}
 		attribs = append(attribs, attr)
